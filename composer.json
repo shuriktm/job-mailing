@@ -1,0 +1,26 @@
+{
+  "name": "shuriktm/job-mailing",
+  "description": "Job Test Mailing",
+  "type": "project",
+  "support": {
+    "issues": "https://github.com/shuriktm/job-mailing/issues?state=open",
+    "source": "https://github.com/shuriktm/job-mailing"
+  },
+  "minimum-stability": "stable",
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://asset-packagist.org"
+    }
+  ],
+  "require": {
+    "php": ">=8.1.0"
+  },
+  "config": {
+    "process-timeout": 1800,
+    "secure-http": false,
+    "preferred-install": {
+      "*": "dist"
+    }
+  }
+}
