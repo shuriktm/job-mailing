@@ -43,7 +43,10 @@ else
 
     echo "- Creating dump file with random users data"
     touch ${SQL_FILE}
-    echo "SET time_zone='+00:00';" > ${SQL_FILE}
+
+    CURRENT_TS=$(date +%s)
+    START_TS=$((CURRENT_TS + 60 * 60 * 24 * 3))
+    END_TS=$((START_TS + 60 * 60 * 24 * 30))
 
     i=0
     for num in $(shuf -i 1-$USER_RANDOM_MAX); do
@@ -51,14 +54,17 @@ else
       RAND_STR=$(echo $num | md5sum | head -c 10)
       RAND_USER="${RAND_STR}-${num}"
       RAND_FLAG=$(shuf -i 0-1 -n 1)
-      CURRENT_TS=$(date +%s)
-      MONTH_TS=$((CURRENT_TS + 60 * 60 * 24 * 30))
-      RAND_TS=$((CURRENT_TS + $RANDOM % MONTH_TS))
+      RAND_TS=$(shuf -i $START_TS-$END_TS -n 1)
 
-      echo >&2 "-- username: ${RAND_USER} (${i})"
+      echo >&2 " - username: ${RAND_USER} (${i})"
 
-      echo "INSERT INTO \`mailing\`.\`users\` (\`username\`, \`email\`, \`validts\`, \`confirmed\`) VALUES ('${RAND_USER}', '${RAND_USER}@example.com', ${RAND_TS}, ${RAND_FLAG}) ON DUPLICATE KEY UPDATE username='${RAND_USER}';"
+      echo "INSERT INTO \`mailing\`.\`users\` (\`username\`, \`email\`, \`validts\`, \`confirmed\`) VALUES ('${RAND_USER}', '${RAND_USER}@example.com', ${RAND_TS}, ${RAND_FLAG});"
     done >> ${SQL_FILE}
+
+    DUMP_TS=$(date +%s)
+    DUMP_TIME=$(date -d @$((DUMP_TS - CURRENT_TS)) +%H:%M:%S)
+
+    echo "- Creation time: ${DUMP_TIME}"
 
     gzip -c ${SQL_FILE} > "${SQL_FILE}.gz"
     rm ${SQL_FILE}
@@ -66,6 +72,11 @@ else
 
   echo "- Importing dump file into DB"
   gunzip < "${SQL_FILE}.gz" | mysql -h${MYSQL_HOST} -u${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE}
+
+  IMPORT_TS=$(date +%s)
+  IMPORT_TIME=$(date -d @$((IMPORT_TS - DUMP_TS)) +%H:%M:%S)
+
+  echo "- Import time: ${IMPORT_TIME}"
 
   echo "- Complete"
 fi
