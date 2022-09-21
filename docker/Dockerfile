@@ -56,15 +56,10 @@ RUN curl -sS https://getcomposer.org/installer -o composer-setup.php
 RUN php composer-setup.php --install-dir=/usr/local/bin --filename=composer
 RUN rm -rf composer-setup.php
 
-# Build process
-COPY . .
-RUN composer install --no-dev
+# Entrypoint
+COPY ./docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-EXPOSE 80
-
-COPY ./docker/entrypoint.sh /var/tmp/
-RUN chmod +x /var/tmp/entrypoint.sh
-
-#ENTRYPOINT ["/var/tmp/entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
 
 CMD ["supervisord", "-c", "/etc/supervisor.d/supervisord.ini"]

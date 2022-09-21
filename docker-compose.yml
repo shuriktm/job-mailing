@@ -13,9 +13,11 @@ services:
       - "80:9001"
     environment:
       - MYSQL_DATABASE=mailing
-      - MYSQL_HOST=mysql
+      - MYSQL_HOST=mailing-mysql
       - MYSQL_USER=mailing
       - MYSQL_PASSWORD=mailing
+      - USER_RANDOM_MAX=1000000
+      - USER_SAMPLE_DATA=true
     volumes:
       - ./docker/log/nginx:/var/log/nginx
       - ./docker/log/php:/var/log/php
@@ -35,6 +37,12 @@ services:
     volumes:
       - ./docker/data/mysql:/var/lib/mysql
       - ./docker/log/mysql:/var/log/mysql
+      - ./docker/mysql/init/:/docker-entrypoint-initdb.d/
+    command:
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --explicit_defaults_for_timestamp=true
+      --lower_case_table_names=1
     ports:
       - "3306:3306"
     environment:
