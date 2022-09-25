@@ -24,4 +24,4 @@ Developers
 
 - You can adjust servers IPs and ports in `docker-compose.yml` if it conflicts with your local environment
 - Random data is automatically generated (1 million users), set `USER_RANDOM_MAX=1000000` environment variable for `php` docker container to change number of users
-- To speed up testing set `USE_SAMPLE_DATA=true` environment variable for `php` docker container (set by default)
+- To speed up testing set `USER_SAMPLE_DATA=true` environment variable for `php` docker container (set by default)

@@ -1,7 +1,8 @@
 <?php
 
-require __DIR__ . '/../lib/func.php';
 require __DIR__ . '/../lib/db.php';
+require __DIR__ . '/../lib/func.php';
+require __DIR__ . '/../lib/check.php';
 
 $config = require __DIR__ . '/../config.php';
 
@@ -13,9 +14,15 @@ array_shift($params);
 $action = $params[0] ?? null;
 switch ($action) {
     case 'check/queue':
-        // TODO: Schedule emails to check
+        check\queue($db);
+        break;
+    case 'check':
+        check\process($db);
+        break;
+    case 'send/queue':
+        // TODO: Schedule emails to send
 
-        $emails = db\find($db, 'SELECT * FROM users WHERE confirmed=:confirmed LIMIT 1', ['confirmed' => true]);
+        $emails = db\all($db, 'SELECT * FROM users WHERE confirmed=:confirmed LIMIT 1', ['confirmed' => true]);
         var_dump($emails);
 
         $updated = db\upsert($db, 'emails', 'email', [
@@ -30,16 +37,7 @@ switch ($action) {
         ]);
         var_dump($deleted);
         break;
-    case 'check/do':
-        // TODO: Check emails from the queue
-
-        echo "Check email...\n";
-        var_dump(check_email('test@example.email'));
-        break;
-    case 'send/queue':
-        // TODO: Schedule emails to send
-        break;
-    case 'send/do':
+    case 'send':
         // TODO: Send emails from the queue
 
         echo "Send email...\n";
@@ -50,9 +48,9 @@ switch ($action) {
         echo implode("\n", [
             'Please choose an action (as the first argument):',
             '- check/queue (queue emails to check)',
-            '- check/process (check emails)',
+            '- check (check emails)',
             '- send/queue (queue emails to send)',
-            '- send/process (send emails)',
+            '- send (send emails)',
         ]);
         echo "\n";
 }
