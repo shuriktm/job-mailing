@@ -14,7 +14,9 @@
     }
   ],
   "require": {
-    "php": ">=8.1.0"
+    "php": ">=8.1.0",
+    "ext-pdo": "*",
+    "ext-mysqlnd": "*"
   },
   "config": {
     "process-timeout": 1800,

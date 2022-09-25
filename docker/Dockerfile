@@ -18,15 +18,16 @@ RUN sed -i 's/bin\/ash/bin\/bash/g' /etc/passwd
 # Install PHP
 RUN apk add --no-cache php81 \
     php81-common \
-    php81-fpm \
     php81-phar \
     php81-iconv \
     php81-mbstring \
     php81-openssl \
-    php81-pdo \
     php81-opcache \
+    php81-mysqlnd \
+    php81-pdo \
+    php81-pdo_mysql \
     php81-cli \
-    php81-json
+    php81-fpm
 
 # Configure supervisor
 RUN mkdir -p /run/supervisord/
