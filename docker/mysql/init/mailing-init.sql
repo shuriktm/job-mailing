@@ -7,10 +7,11 @@
 
 CREATE TABLE IF NOT EXISTS `users` (
     `email` varchar(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-    `username` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    `username` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `validts` int NOT NULL DEFAULT '0',
     `confirmed` tinyint(1) NOT NULL DEFAULT '0',
-    PRIMARY KEY (`email`),
+    `notified` tinyint(1) NOT NULL DEFAULT '0',
+    PRIMARY KEY (`email`) USING BTREE,
     UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

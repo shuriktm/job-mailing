@@ -3,6 +3,7 @@
 require __DIR__ . '/../lib/db.php';
 require __DIR__ . '/../lib/func.php';
 require __DIR__ . '/../lib/check.php';
+require __DIR__ . '/../lib/send.php';
 
 $config = require __DIR__ . '/../config.php';
 
@@ -20,29 +21,10 @@ switch ($action) {
         check\process($db);
         break;
     case 'send/queue':
-        // TODO: Schedule emails to send
-
-        $emails = db\all($db, 'SELECT * FROM users WHERE confirmed=:confirmed LIMIT 1', ['confirmed' => true]);
-        var_dump($emails);
-
-        $updated = db\upsert($db, 'emails', 'email', [
-            ['email' => 'd4d904fdfa-380471@example.com', 'valid' => 1, 'checked' => 1],
-            ['email' => '3c66156ce4-84353@example.com', 'valid' => 0, 'checked' => 1],
-        ]);
-        var_dump($updated);
-
-        $deleted = db\delete($db, 'emails', 'email', [
-            'd4d904fdfa-380471@example.com',
-            '3c66156ce4-84353@example.com',
-        ]);
-        var_dump($deleted);
+        send\queue($db);
         break;
     case 'send':
-        // TODO: Send emails from the queue
-
-        echo "Send email...\n";
-        $message = strtr('{username}, your subscription is expiring soon', ['{username}' => 'test']);
-        var_dump(send_email('test@example.email', 'test@example.email', 'test@example.email', 'Subscription Renewal', $message));
+        send\process($db, $config['mail']);
         break;
     default:
         echo implode("\n", [

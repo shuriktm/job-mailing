@@ -16,39 +16,49 @@ use PDO;
 function queue(PDO $db): void
 {
     // Next subscription timestamp
-    $first = db\scalar($db, 'SELECT u.validts FROM users u LEFT JOIN emails e ON e.email=u.email WHERE e.email IS NULL AND u.confirmed=1 ORDER BY u.validts ASC LIMIT 1');
+    $firstTs = db\scalar($db, 'SELECT u.validts FROM users u LEFT JOIN emails e ON e.email=u.email WHERE e.email IS NULL AND u.confirmed=1 ORDER BY u.validts ASC LIMIT 1');
 
     // We need just approximate number of unchecked emails
-    $confirmed = db\scalar($db, "SELECT COUNT(*) FROM users WHERE confirmed=1 AND validts > $first LIMIT 1");
+    $confirmedQty = db\scalar($db, "SELECT COUNT(*) FROM users WHERE confirmed=1 AND validts > $firstTs LIMIT 1");
 
     // Last subscription timestamp
-    $last = db\scalar($db, 'SELECT validts FROM users WHERE confirmed=1 ORDER BY validts DESC LIMIT 1');
+    $lastTs = db\scalar($db, 'SELECT validts FROM users WHERE confirmed=1 ORDER BY validts DESC LIMIT 1');
+
+    // Break if there are no emails to check
+    if (!$confirmedQty) {
+        return;
+    }
 
     // Calculate the number of emails to be processed per hour to evenly distribute the load
-    $hours = round(($last - $first) / 60 / 60);
-    $batch = round($confirmed / $hours);
-    $threads = round($batch / 60);
+    $hours = ceil(($lastTs - $firstTs) / 60 / 60);
+    $batchQty = ceil($confirmedQty / $hours);
+    $threadQty = ceil($batchQty / 60);
 
     // Check only emails to be sent within next 7 days
-    $next = time() + 60 * 60 * 24 * 7;
+    $nextTs = time() + 60 * 60 * 24 * 7;
 
-    echo "Total: $confirmed. Batch: $batch. Threads: $threads.\n";
+    echo "Total: $confirmedQty. Batch: $batchQty. Threads: $threadQty.\n";
 
     // Retrieve a batch of emails to process within next hour
-    $emails = db\column($db, "SELECT u.email FROM users u LEFT JOIN emails e ON e.email=u.email WHERE e.email IS NULL AND u.confirmed=1 AND u.validts < $next ORDER BY u.validts ASC LIMIT $batch");
+    $emails = db\column($db, "SELECT u.email FROM users u LEFT JOIN emails e ON e.email=u.email WHERE e.email IS NULL AND u.confirmed=1 AND u.validts < $nextTs ORDER BY u.validts ASC LIMIT $batchQty");
 
     // Add items to emails table
-    $num = db\upsert($db, 'emails', 'email', array_map(fn($email) => ['email' => $email], $emails));
-    echo "Selected $num emails for check.\n";
+    db\upsert($db, 'emails', 'email', array_map(fn($email) => ['email' => $email], $emails));
+
+    $qty = count($emails);
+    echo "Selected $qty email(s) for check.\n";
 
     // Divide emails into chunks to check a small chunk of them every minute, schedule checks
     $queueTs = time();
-    foreach (array_chunk($emails, $threads) as $chunk) {
-        $num = db\upsert($db, 'queue_check', 'email', array_map(fn($email) => [
+    foreach (array_chunk($emails, $threadQty) as $chunk) {
+        db\upsert($db, 'queue_check', 'email', array_map(fn($email) => [
             'email'   => $email,
             'queuets' => $queueTs,
         ], $chunk));
-        echo "Added $num emails into the queue.\n";
+
+        $qty = count($chunk);
+        echo "Added $qty email(s) into the queue.\n";
+
         $queueTs += 60;
     }
 }
@@ -60,18 +70,20 @@ function queue(PDO $db): void
  */
 function process(PDO $db): void
 {
-    $now = time();
-    $retry = $now - 60 * 60;
+    $nowTs = time();
+    $retryTs = $nowTs - 60 * 60;
 
     // Retrieve a small chunk of emails (maximum 20) from the queue, also retry emails that have not been checked due to any unexpected error
-    $emails = db\column($db, "SELECT email FROM queue_check WHERE (processts IS NULL OR processts < $retry) AND queuets < $now LIMIT 20");
+    $emails = db\column($db, "SELECT email FROM queue_check WHERE (processts IS NULL OR processts < $retryTs) AND queuets < $nowTs LIMIT 20");
 
     // Lock emails in the queue by setting a process timestamp
-    $num = db\upsert($db, 'queue_check', 'email', array_map(fn($email) => [
+    db\upsert($db, 'queue_check', 'email', array_map(fn($email) => [
         'email'     => $email,
-        'processts' => $now,
+        'processts' => $nowTs,
     ], $emails));
-    echo "Locked $num emails for processing.\n";
+
+    $qty = count($emails);
+    echo "Locked $qty email(s) for processing.\n";
 
     // Check emails in parallel threads
     // TODO: Use threads
@@ -88,10 +100,12 @@ function process(PDO $db): void
     }
 
     // Save check results
-    $num = db\upsert($db, 'emails', 'email', $checked);
-    echo "Checked $num emails.\n";
+    db\upsert($db, 'emails', 'email', $checked);
+
+    $qty = count($checked);
+    echo "Checked $qty email(s).\n";
 
     // Delete emails from the queue
-    $num = db\delete($db, 'queue_check', 'email', array_keys($checked));
-    echo "Deleted $num emails from the queue.\n";
+    db\delete($db, 'queue_check', 'email', array_keys($checked));
+    echo "Deleted $qty email(s) from the queue.\n";
 }
