@@ -19,6 +19,9 @@ services:
       - MYSQL_PASSWORD=mailing
       - USER_RANDOM_MAX=1000000
       - USER_SAMPLE_DATA=true
+      - CHECK_THREAD_MAX=100
+      - SEND_THREAD_MAX=20
+      - SEND_FROM_EMAIL=mailing@example.com
     volumes:
       - ./docker/log/nginx:/var/log/nginx
       - ./docker/log/php:/var/log/php
@@ -39,6 +42,7 @@ services:
     volumes:
       - ./docker/data/mysql:/var/lib/mysql
       - ./docker/log/mysql:/var/log/mysql
+      - ./docker/mysql/conf:/etc/mysql/conf.d
       - ./docker/mysql/init/:/docker-entrypoint-initdb.d/
     command:
       --character-set-server=utf8mb4

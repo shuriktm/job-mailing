@@ -6,6 +6,7 @@
 namespace check;
 
 use db;
+use thread;
 use PDO;
 
 /**
@@ -26,6 +27,7 @@ function queue(PDO $db): void
 
     // Break if there are no emails to check
     if (!$confirmedQty) {
+        echo "No emails to check.\n";
         return;
     }
 
@@ -67,15 +69,25 @@ function queue(PDO $db): void
 /**
  * Checks emails from the queue.
  *
+ * @param array $config the thread config.
  * @param PDO $db the database connection.
  */
-function process(PDO $db): void
+function process(PDO $db, array $config): void
 {
     $nowTs = time();
     $retryTs = $nowTs - 60 * 60;
 
+    // Maximum number of threads
+    $limit = $config['max'];
+
     // Retrieve a small chunk of emails (maximum 20) from the queue, also retry emails that have not been checked due to any unexpected error
-    $emails = db\column($db, "SELECT email FROM queue_check WHERE (processts IS NULL OR processts < $retryTs) AND queuets < $nowTs LIMIT 20");
+    $emails = db\column($db, "SELECT email FROM queue_check WHERE (processts IS NULL OR processts < $retryTs) AND queuets < $nowTs LIMIT $limit");
+
+    // Break if there are no emails to check
+    if (!$emails) {
+        echo "No emails in the queue.\n";
+        return;
+    }
 
     // Lock emails in the queue by setting a process timestamp
     db\upsert($db, 'queue_check', 'email', array_map(fn($email) => [
@@ -87,26 +99,32 @@ function process(PDO $db): void
     echo "Locked $qty email(s) for processing.\n";
 
     // Check emails in parallel threads
-    // TODO: Use threads
-    $checked = [];
-    foreach ($emails as $email) {
-        echo "Check email: $email...\r";
-        $result = check_email($email);
-        $checked[$email] = [
-            'email'   => $email,
-            'checked' => true,
-            'valid'   => $result,
-        ];
-        echo "Check email: $email... Done.\n";
-    }
+    thread\copy(params: array_map(fn($email) => ['check/one', $email], $emails));
 
-    // Save check results
-    db\upsert($db, 'emails', 'email', $checked);
-
-    $qty = count($checked);
+    $time = time() - $nowTs;
     echo "Checked $qty email(s).\n";
+    echo "Time: $time second(s).\n";
+}
 
-    // Delete emails from the queue
-    db\delete($db, 'queue_check', 'email', array_keys($checked));
-    echo "Deleted $qty email(s) from the queue.\n";
+/**
+ * Checks the specified email.
+ *
+ * @param PDO $db the database connection.
+ * @param string $email the user email.
+ */
+function one(PDO $db, string $email): void
+{
+    // Process check
+    echo "Check email: $email...\r";
+    $result = check_email($email);
+    $status = $result ? 'valid' : 'invalid';
+    echo "Email $email is $status.\n";
+
+    // Save check result
+    db\upsert($db, 'emails', 'email', [
+        ['email' => $email, 'checked' => true, 'valid' => $result],
+    ]);
+
+    // Delete email from the queue
+    db\delete($db, 'queue_check', 'email', [$email]);
 }

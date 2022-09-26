@@ -1,4 +1,4 @@
 0 * * * * /usr/bin/php /var/www/mailing/app/cli/script.php check/queue >> /var/log/cron/check-queue.log 2>&1
-* * * * * /usr/bin/php /var/www/mailing/app/cli/script.php check >> /var/log/cron/check.log 2>&1
+* * * * * /usr/bin/php /var/www/mailing/app/cli/script.php check/process >> /var/log/cron/check-process.log 2>&1
 0 * * * * /usr/bin/php /var/www/mailing/app/cli/script.php send/queue >> /var/log/cron/send-queue.log 2>&1
-* * * * * /usr/bin/php /var/www/mailing/app/cli/script.php send >> /var/log/cron/send.log 2>&1
+* * * * * /usr/bin/php /var/www/mailing/app/cli/script.php send/process >> /var/log/cron/send-process.log 2>&1

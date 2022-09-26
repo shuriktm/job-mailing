@@ -6,6 +6,7 @@
 namespace send;
 
 use db;
+use thread;
 use PDO;
 
 /**
@@ -23,6 +24,7 @@ function queue(PDO $db): void
 
     // Break if there are no emails to send
     if (!$validQty) {
+        echo "No emails to send.\n";
         return;
     }
 
@@ -57,17 +59,26 @@ function queue(PDO $db): void
 /**
  * Sends notification to emails from the queue.
  *
+ * @param array $config the thread config.
  * @param PDO $db the database connection.
- * @param array $config the mailing config.
  */
 function process(PDO $db, array $config): void
 {
     $nowTs = time();
     $retryTs = $nowTs - 60 * 60;
 
+    // Maximum number of threads
+    $limit = $config['max'] * 5;
+
     // Retrieve a small chunk of emails from the queue, also retry emails that have not been checked due to any unexpected error
-    $data = db\all($db, "SELECT q.email, u.username FROM queue_send q, users u WHERE (q.processts IS NULL OR q.processts < $retryTs) AND q.queuets < $nowTs AND u.email=q.email");
+    $data = db\all($db, "SELECT q.email, u.username FROM queue_send q, users u WHERE (q.processts IS NULL OR q.processts < $retryTs) AND q.queuets < $nowTs AND u.email=q.email LIMIT $limit");
     $emails = array_map(fn($item) => $item['email'], $data);
+
+    // Break if there are no emails to send
+    if (!$emails) {
+        echo "No emails in the queue.\n";
+        return;
+    }
 
     // Lock emails in the queue by setting a process timestamp
     db\upsert($db, 'queue_send', 'email', array_map(fn($email) => [
@@ -79,29 +90,41 @@ function process(PDO $db, array $config): void
     echo "Locked $qty email(s) for processing.\n";
 
     // Send emails in parallel threads
-    // TODO: Use threads
-    $sent = [];
-    foreach ($data as $item) {
-        $email = $item['email'];
-        $message = strtr('{username}, your subscription is expiring soon', ['{username}' => $item['username']]);
-
-        echo "Send email: $email...\r";
-        $result = send_email($email, from: $config['from'], to: $email, subj: 'Subscription Renewal', body: $message);
-        $sent[$email] = [
-            'email'    => $email,
-            'notified' => $result,
-        ];
-        echo "Send email: $email... Done.\n";
+    // Each thread works maximum 10 seconds, so split emails into 5 chunks to evenly distribute the load during 1 minute
+    foreach (array_chunk($data, ceil($qty / 5)) as $group) {
+        thread\copy(params: array_map(fn($item) => ['send/one', $item['email'], $item['username']], $group));
     }
 
-    // Save mailing results
-    db\upsert($db, 'users', 'email', $sent);
-
-    $qty = count($sent);
+    $time = time() - $nowTs;
     echo "Sent $qty email(s).\n";
+    echo "Time: $time second(s).\n";
+}
 
-    // Delete emails from the queue
-    db\delete($db, 'queue_send', 'email', array_keys($sent));
-    echo "Deleted $qty email(s) from the queue.\n";
+/**
+ * Checks the specified email.
+ *
+ * @param PDO $db the database connection.
+ * @param array $config the mailing config.
+ * @param string $email the user email.
+ * @param string $username the username.
+ */
+function one(PDO $db, array $config, string $email, string $username): void
+{
+    // Prepare message
+    $message = strtr('{username}, your subscription is expiring soon', ['{username}' => $username]);
+
+    // Send email
+    echo "Send email to $email...\r";
+    $result = send_email($email, from: $config['from'], to: $email, subj: 'Subscription Renewal', body: $message);
+    $status = $result ? 'has been sent' : 'cannot be sent';
+    echo "Email to $email $status.\n";
+
+    // Mark user as notified
+    db\upsert($db, 'users', 'email', [
+        ['email' => $email, 'notified' => $result],
+    ]);
+
+    // Delete email from the queue
+    db\delete($db, 'queue_send', 'email', [$email]);
 }
 
