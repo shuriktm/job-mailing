@@ -1,4 +1,4 @@
-version: '3.3'
+version: '3.9'
 
 services:
   php:
@@ -7,6 +7,7 @@ services:
     build:
       context: ./
       dockerfile: docker/Dockerfile
+    init: true
     links:
       - mysql:mysql
     ports:
@@ -22,6 +23,7 @@ services:
       - ./docker/log/nginx:/var/log/nginx
       - ./docker/log/php:/var/log/php
       - ./docker/log/supervisord:/var/log/supervisord
+      - ./docker/log/cron:/var/log/cron
       - ./:/var/www/mailing
     depends_on:
       - mysql

@@ -40,6 +40,7 @@ function queue(PDO $db): void
     echo "Total: $confirmedQty. Batch: $batchQty. Threads: $threadQty.\n";
 
     // Retrieve a batch of emails to process within next hour
+    // TODO: Include all emails that have to be sent in next 4 days
     $emails = db\column($db, "SELECT u.email FROM users u LEFT JOIN emails e ON e.email=u.email WHERE e.email IS NULL AND u.confirmed=1 AND u.validts < $nextTs ORDER BY u.validts ASC LIMIT $batchQty");
 
     // Add items to emails table

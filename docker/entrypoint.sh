@@ -3,6 +3,7 @@
 echo "Install Composer dependencies"
 
 composer install --no-dev
+composer update --no-dev
 
 env >> /etc/environment
 echo "MYSQL_PASSWORD='${MYSQL_PASSWORD}'" >> /etc/environment
@@ -80,5 +81,9 @@ else
 
   echo "- Complete"
 fi
+
+echo "Initialize crontab"
+
+crontab /var/www/mailing/docker/cron/crontab.txt
 
 exec "$@"

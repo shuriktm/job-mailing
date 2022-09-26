@@ -1,0 +1,4 @@
+0 * * * * /usr/bin/php /var/www/mailing/app/cli/script.php check/queue >> /var/log/cron/check-queue.log 2>&1
+* * * * * /usr/bin/php /var/www/mailing/app/cli/script.php check >> /var/log/cron/check.log 2>&1
+0 * * * * /usr/bin/php /var/www/mailing/app/cli/script.php send/queue >> /var/log/cron/send-queue.log 2>&1
+* * * * * /usr/bin/php /var/www/mailing/app/cli/script.php send >> /var/log/cron/send.log 2>&1
