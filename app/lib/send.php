@@ -10,11 +10,12 @@ use thread;
 use PDO;
 
 /**
- * Adds emails for notification into the queue.
+ * Calculates the number of emails that have to be processed.
  *
  * @param PDO $db the database connection.
+ * @return array the different check metrics.
  */
-function queue(PDO $db): void
+function load(PDO $db): array
 {
     // Number of emails to be sent within next 12 hours
     $todayTs = time() + 60 * 60 * 24 * 3.5;
@@ -24,14 +25,41 @@ function queue(PDO $db): void
 
     // Break if there are no emails to send
     if (!$dayQty) {
-        echo "No emails to send.\n";
-        return;
+        return [];
     }
 
     // Calculate the number of emails to be processed per hour to evenly distribute the load
     $batchQty = ceil($dayQty / 12);
     $chunkQty = ceil($batchQty / 60);
     $threadQty = ceil($chunkQty / 5);
+
+    return [
+        'today'  => $todayTs,
+        'day'    => $dayQty,
+        'batch'  => $batchQty,
+        'chunk'  => $chunkQty,
+        'thread' => $threadQty,
+    ];
+}
+
+/**
+ * Adds emails for notification into the queue.
+ *
+ * @param PDO $db the database connection.
+ */
+function queue(PDO $db): void
+{
+    // Calculate load metrics
+    $load = load($db);
+
+    // Break if there are no emails to send
+    if (!$load) {
+        echo "No emails to send.\n";
+        return;
+    }
+
+    // Extract metrics
+    ['today' => $todayTs, 'day' => $dayQty, 'batch' => $batchQty, 'chunk' => $chunkQty, 'thread' => $threadQty] = $load;
 
     echo "Day: $dayQty. Batch: $batchQty. Threads: $threadQty.\n";
 

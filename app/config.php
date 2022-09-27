@@ -11,6 +11,6 @@ return [
     ],
     'thread' => [
         'check' => ['max' => getenv('CHECK_THREAD_MAX') ? : 100],
-        'send'  => ['max' => getenv('SEND_THREAD_MAX') ? : 100],
+        'send'  => ['max' => getenv('SEND_THREAD_MAX') ? : 20],
     ],
 ];

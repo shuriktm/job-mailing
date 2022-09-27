@@ -1,14 +1,15 @@
-# Test Subscription service
+# Test Mailing service
 
 In current configuration the service can:
-- check 6000 emails per hour (that is 144000 per day or 4 millions per month)
+
+- check 6000 emails per hour (that is about 140000 per day or 4 millions per month)
 - send the same number of emails per hour
 - the load is evenly distributed over time
 
-Set `CHECK_THREAD_MAX=100` and `SEND_THREAD_MAX=20` environment variable for `php` docker container to manage service capabilities.
+Set `CHECK_THREAD_MAX=100` and `SEND_THREAD_MAX=20` environment variable for `php` docker container to manage service capabilities (maximum sum of threads is 300).
 
 Installation
----------------
+------------
 
 - Install [Docker](https://www.docker.com/)
 - Clone the repo to the project directory
@@ -17,12 +18,12 @@ Installation
 Usage
 -----
 
-- Open dashboard on [127.0.0.1](http://127.0.0.1/)
+- Open dashboard on [localhost](http://localhost/)
 - Cron job is planned automatically
-- On dashboard you can see the mailing progress
+- Dashboard displays general statistics, check and mailing progress
 
 Database
-----------
+--------
 
 - MySQL server is available on IP 127.0.0.1 and port 3306
 

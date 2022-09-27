@@ -10,19 +10,19 @@ use thread;
 use PDO;
 
 /**
- * Adds emails that have to be checked into the queue.
+ * Calculates the number of emails that have to be processed.
  *
  * @param PDO $db the database connection.
+ * @return array the different check metrics.
  */
-function queue(PDO $db): void
+function load(PDO $db): array
 {
     // Next subscription timestamp
     $startTs = db\scalar($db, 'SELECT u.validts FROM users u LEFT JOIN emails e ON e.email=u.email WHERE e.email IS NULL AND u.confirmed=1 ORDER BY u.validts ASC LIMIT 1');
 
     // Break if there are no emails to check
     if (!$startTs) {
-        echo "No emails to check.\n";
-        return;
+        return [];
     }
 
     // Last timestamp: total, day and hour
@@ -60,6 +60,33 @@ function queue(PDO $db): void
     $loadType = array_search(max($loads), $loads);
     $batchQty = $loads[$loadType];
     $threadQty = ceil($batchQty / 60);
+
+    return [
+        'totals' => $totals,
+        'batch'  => $batchQty,
+        'type'   => $loadType,
+        'thread' => $threadQty,
+    ];
+}
+
+/**
+ * Adds emails that have to be checked into the queue.
+ *
+ * @param PDO $db the database connection.
+ */
+function queue(PDO $db): void
+{
+    // Calculate load metrics
+    $load = load($db);
+
+    // Break if there are no emails to check
+    if (!$load) {
+        echo "No emails to check.\n";
+        return;
+    }
+
+    // Extract metrics
+    ['totals' => $totals, 'batch' => $batchQty, 'type' => $loadType, 'thread' => $threadQty] = $load;
 
     // Check only emails to be sent within next 7 days
     $nextTs = time() + 60 * 60 * 24 * 7;
