@@ -1,5 +1,12 @@
 # Test Subscription service
 
+In current configuration the service can:
+- check 6000 emails per hour (that is 144000 per day or 4 millions per month)
+- send the same number of emails per hour
+- the load is evenly distributed over time
+
+Set `CHECK_THREAD_MAX=100` and `SEND_THREAD_MAX=20` environment variable for `php` docker container to manage service capabilities.
+
 Installation
 ---------------
 
@@ -24,4 +31,4 @@ Developers
 
 - You can adjust servers IPs and ports in `docker-compose.yml` if it conflicts with your local environment
 - Random data is automatically generated (1 million users), set `USER_RANDOM_MAX=1000000` environment variable for `php` docker container to change number of users
-- To speed up testing set `USER_SAMPLE_DATA=true` environment variable for `php` docker container (set by default)
+- To speed up testing, set `USER_SAMPLE_DATA=true` environment variable for `php` docker container (set by default)

@@ -20,20 +20,20 @@ function queue(PDO $db): void
     $todayTs = time() + 60 * 60 * 24 * 3.5;
 
     // We do not check if emails is already in the queue, it's not important - anyway we need to retry it. But additional join can increase fetching time.
-    $validQty = db\scalar($db, "SELECT COUNT(*) FROM users u LEFT JOIN emails e ON e.email=u.email WHERE u.confirmed=1 AND u.notified=0 AND u.validts < $todayTs AND e.valid=1 ORDER BY u.validts ASC LIMIT 1");
+    $dayQty = db\scalar($db, "SELECT COUNT(*) FROM users u LEFT JOIN emails e ON e.email=u.email WHERE u.confirmed=1 AND u.notified=0 AND u.validts < $todayTs AND e.valid=1 ORDER BY u.validts ASC LIMIT 1");
 
     // Break if there are no emails to send
-    if (!$validQty) {
+    if (!$dayQty) {
         echo "No emails to send.\n";
         return;
     }
 
     // Calculate the number of emails to be processed per hour to evenly distribute the load
-    $batchQty = ceil($validQty / 12);
+    $batchQty = ceil($dayQty / 12);
     $chunkQty = ceil($batchQty / 60);
     $threadQty = ceil($chunkQty / 5);
 
-    echo "Total: $validQty. Batch: $batchQty. Threads: $threadQty.\n";
+    echo "Day: $dayQty. Batch: $batchQty. Threads: $threadQty.\n";
 
     // Retrieve a batch of emails to process within next hour
     $emails = db\column($db, "SELECT u.email FROM users u LEFT JOIN emails e ON e.email=u.email WHERE u.confirmed=1 AND u.notified=0 AND u.validts < $todayTs AND e.valid=1 ORDER BY u.validts ASC LIMIT $batchQty");

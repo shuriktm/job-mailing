@@ -17,29 +17,54 @@ use PDO;
 function queue(PDO $db): void
 {
     // Next subscription timestamp
-    $firstTs = db\scalar($db, 'SELECT u.validts FROM users u LEFT JOIN emails e ON e.email=u.email WHERE e.email IS NULL AND u.confirmed=1 ORDER BY u.validts ASC LIMIT 1');
-
-    // We need just approximate number of unchecked emails
-    $confirmedQty = db\scalar($db, "SELECT COUNT(*) FROM users WHERE confirmed=1 AND validts > $firstTs LIMIT 1");
-
-    // Last subscription timestamp
-    $lastTs = db\scalar($db, 'SELECT validts FROM users WHERE confirmed=1 ORDER BY validts DESC LIMIT 1');
+    $startTs = db\scalar($db, 'SELECT u.validts FROM users u LEFT JOIN emails e ON e.email=u.email WHERE e.email IS NULL AND u.confirmed=1 ORDER BY u.validts ASC LIMIT 1');
 
     // Break if there are no emails to check
-    if (!$confirmedQty) {
+    if (!$startTs) {
         echo "No emails to check.\n";
         return;
     }
 
+    // Last timestamp: total, day and hour
+    $timestamp = [
+        'all'  => db\scalar($db, 'SELECT validts FROM users WHERE confirmed=1 ORDER BY validts DESC LIMIT 1'),
+        // To be sent within next hour
+        'hour' => $startTs + 60 * 60,
+        // To be sent within next 12 hours (2 hours to spare)
+        'day'  => $startTs + 60 * 60 * 10,
+    ];
+
+    // Number of emails: total, day and hour
+    // We need just approximate number of unchecked emails
+    $totals = [
+        'all'  => db\scalar($db, "SELECT COUNT(*) FROM users WHERE confirmed=1 AND validts > :start LIMIT 1", ['start' => $startTs]),
+        'day'  => db\scalar($db, "SELECT COUNT(*) FROM users WHERE confirmed=1 AND validts > :start AND validts < :end LIMIT 1", [
+            'start' => $startTs,
+            'end'   => $timestamp['day'],
+        ]),
+        'hour' => db\scalar($db, "SELECT COUNT(*) FROM users WHERE confirmed=1 AND validts > :start AND validts < :end LIMIT 1", [
+            'start' => $startTs,
+            'end'   => $timestamp['hour'],
+        ]),
+    ];
+
+    // Number of emails per hour: total, day and hour
+    $loads = [
+        'all'  => ceil($totals['all'] / ceil(($timestamp['all'] - $startTs) / 60 / 60)),
+        'day'  => ceil($totals['day'] / 10),
+        'hour' => $totals['hour'],
+    ];
+
     // Calculate the number of emails to be processed per hour to evenly distribute the load
-    $hours = ceil(($lastTs - $firstTs) / 60 / 60);
-    $batchQty = ceil($confirmedQty / $hours);
+    // Use maximum of total, next hour or today number of emails
+    $loadType = array_search(max($loads), $loads);
+    $batchQty = $loads[$loadType];
     $threadQty = ceil($batchQty / 60);
 
     // Check only emails to be sent within next 7 days
     $nextTs = time() + 60 * 60 * 24 * 7;
 
-    echo "Total: $confirmedQty. Batch: $batchQty. Threads: $threadQty.\n";
+    echo "Total: {$totals['all']}. Day: {$totals['day']}. Hour: {$totals['hour']}. Batch: $batchQty ($loadType). Threads: $threadQty.\n";
 
     // Retrieve a batch of emails to process within next hour
     // TODO: Include all emails that have to be sent in next 4 days
