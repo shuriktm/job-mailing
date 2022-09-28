@@ -11,7 +11,7 @@ array_shift($params);
 $action = $params[0] ?? null;
 switch ($action) {
     case 'check/queue':
-        check\queue($db);
+        check\queue($db, till: (bool) ($params[1] ?? null));
         break;
     case 'check/process':
         check\process($db, config: $config['thread']['check']);

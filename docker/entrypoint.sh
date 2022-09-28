@@ -79,8 +79,16 @@ else
 
   echo "- Import time: ${IMPORT_TIME}"
 
+  TILL_START=$((3600 - $(date +%s) % 3600))
+  if [[ $TILL_START -gt 60 ]]; then
+    echo "- Plan first batch of emails to check"
+    php /var/www/mailing/app/cli/script.php check/queue 1
+  fi
+
   echo "- Complete"
 fi
+
+echo "Mailing dashboard: http://localhost/"
 
 echo "Initialize crontab"
 

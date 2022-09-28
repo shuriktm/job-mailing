@@ -20,6 +20,9 @@ Usage
 
 - Open dashboard on [localhost](http://localhost/)
 - Cron job is planned automatically
+  - Once an hour worker plan a batch of emails to be processed within next hour to evenly distribute the load
+  - Another worker checks for emails in the queue (every minute by cron) and process them in parallel threads
+  - `Check` and `send` workers and queues are separated and do not conflict with each other
 - Dashboard displays general statistics, check and mailing progress
 
 Database

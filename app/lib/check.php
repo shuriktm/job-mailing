@@ -13,9 +13,10 @@ use PDO;
  * Calculates the number of emails that have to be processed.
  *
  * @param PDO $db the database connection.
+ * @param bool $till whether to calculate metrics only for the remainder of the current hour.
  * @return array the different check metrics.
  */
-function load(PDO $db): array
+function load(PDO $db, bool $till = false): array
 {
     // Next subscription timestamp
     $startTs = db\scalar($db, 'SELECT u.validts FROM users u LEFT JOIN emails e ON e.email=u.email WHERE e.email IS NULL AND u.confirmed=1 ORDER BY u.validts ASC LIMIT 1');
@@ -61,6 +62,11 @@ function load(PDO $db): array
     $batchQty = $loads[$loadType];
     $threadQty = ceil($batchQty / 60);
 
+    // Reduce batch for the current hour
+    if ($till) {
+        $batchQty = ceil($batchQty * (3600 - time() % 3600) / 3600);
+    }
+
     return [
         'totals' => $totals,
         'batch'  => $batchQty,
@@ -73,11 +79,12 @@ function load(PDO $db): array
  * Adds emails that have to be checked into the queue.
  *
  * @param PDO $db the database connection.
+ * @param bool $till whether to calculate metrics only for the remainder of the current hour.
  */
-function queue(PDO $db): void
+function queue(PDO $db, bool $till = false): void
 {
     // Calculate load metrics
-    $load = load($db);
+    $load = load($db, $till);
 
     // Break if there are no emails to check
     if (!$load) {
