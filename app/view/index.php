@@ -18,7 +18,7 @@
     </style>
 </head>
 <body>
-<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script src="https://unpkg.com/axios@1.0.0/dist/axios.min.js"></script>
 <script type="module">
     import {createApp, reactive} from "https://unpkg.com/petite-vue?module"
 
